@@ -17,11 +17,13 @@ class ViewController: UIViewController {
     func authorizeHealthKit(completion: ((success:Bool, error:NSError!) -> Void)!) {
         let healthKitTypesToRead = Set(arrayLiteral:
             HKObjectType.characteristicTypeForIdentifier(HKCharacteristicTypeIdentifierDateOfBirth)!,
+            HKObjectType.quantityTypeForIdentifier(HKQuantityTypeIdentifierBodyMass)!,
             HKObjectType.characteristicTypeForIdentifier(HKCharacteristicTypeIdentifierBiologicalSex)!
         )
         let healthKitTypesToWrite = Set(arrayLiteral:
             HKObjectType.quantityTypeForIdentifier(HKQuantityTypeIdentifierActiveEnergyBurned)!,
             HKObjectType.quantityTypeForIdentifier(HKQuantityTypeIdentifierBodyMass)!,
+            HKObjectType.quantityTypeForIdentifier(HKQuantityTypeIdentifierBodyMassIndex)!,
             HKObjectType.quantityTypeForIdentifier(HKQuantityTypeIdentifierDistanceWalkingRunning)!
         )
         
@@ -80,7 +82,7 @@ class ViewController: UIViewController {
                     completion(nil,error)
                     return;
                 }
-
+                
                 // Get the first sample
                 let mostRecentSample = results!.first as? HKQuantitySample
                 
@@ -118,11 +120,13 @@ class ViewController: UIViewController {
                 print("HealthKit authorization received.")
                 let profile = self.readProfile()
                 print(profile)
+                
+                var kilograms: Double = 0.0
+
                 // 1. Construct an HKSampleType for weight
                 let sampleType = HKSampleType.quantityTypeForIdentifier(HKQuantityTypeIdentifierBodyMass)
                 
                 // 2. Call the method to read the most recent weight sample
-                var weight: HKQuantitySample
                 self.readMostRecentSample(sampleType!, completion: { (mostRecentWeight, error) -> Void in
                     
                     if( error != nil )
@@ -130,30 +134,30 @@ class ViewController: UIViewController {
                         print("Error reading weight from HealthKit Store: \(error.localizedDescription)")
                         return;
                     }
-                    
+                    var weight: HKQuantitySample
                     var weightLocalizedString = "empty"
                     // 3. Format the weight to display it on the screen
-                    // print(mostRecentWeight)
                     weight = (mostRecentWeight as? HKQuantitySample)!;
-                    if let kilograms = weight.quantity.doubleValueForUnit(HKUnit.gramUnitWithMetricPrefix(.Kilo)) {
-                        let weightFormatter = NSMassFormatter()
-                        weightFormatter.forPersonMassUse = true;
-                        weightLocalizedString = weightFormatter.stringFromKilograms(kilograms)
-                    }
+                    kilograms = weight.quantity.doubleValueForUnit(HKUnit.gramUnitWithMetricPrefix(.Kilo))
+                    let weightFormatter = NSMassFormatter()
+                    weightFormatter.forPersonMassUse = true;
+                    weightLocalizedString = weightFormatter.stringFromKilograms(kilograms)
                     
                     // 4. Print the result
                     print(weightLocalizedString)
-                    
-                    });
 
-                let weightInKilograms = weight!.quantity.doubleValueForUnit(HKUnit.gramUnitWithMetricPrefix(.Kilo))
-                let heightInMeters: Double = 180
-                
-                var bmi  = weightInKilograms / heightInMeters * heightInMeters
-                
-                // 3. Show the calculated BMI
-                print(String(format: "%.02f", bmi!))
-                healthManager?.saveBMISample(bmi!, date: NSDate())
+                    let weightInKilograms = kilograms
+                    let heightInMeters: Double = 180
+                    
+                    let bmi  = weightInKilograms / heightInMeters * heightInMeters
+                    
+                    // 3. Show the calculated BMI
+                    print(String(format: "%.02f", bmi))
+                    
+                    // Store bmi
+                    self.saveBMISample(bmi, date: NSDate())
+
+                    });
 
             }
             else
